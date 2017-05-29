@@ -97,9 +97,9 @@ class CsObject:
 
     def updateDate( self ):
         try:
-            locale.setlocale( locale.LC_ALL , 'en_US' )
+            locale.setlocale( locale.LC_ALL , 'en_US.utf8' )
         except locale.Error:
-            locale.setlocale( locale.LC_ALL , 'us_us' )
+            locale.setlocale( locale.LC_ALL , 'us_us.utf8' )
         except:
             pass
         self.date = datetime.datetime.now().strftime("%d-%b-%Y %H:%M:%S")
