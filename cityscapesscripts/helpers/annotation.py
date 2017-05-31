@@ -112,11 +112,11 @@ class CsObject:
 # The annotation of a whole image
 class Annotation:
     # Constructor
-    def __init__(self):
+    def __init__(self, imageWidth, imageHeight):
         # the width of that image and thus of the label image
-        self.imgWidth  = 0
+        self.imgWidth  = imageWidth
         # the height of that image and thus of the label image
-        self.imgHeight = 0
+        self.imgHeight = imageHeight
         # the list of objects
         self.objects = []
 
