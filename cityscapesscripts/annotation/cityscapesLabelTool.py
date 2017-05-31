@@ -1215,7 +1215,7 @@ class CityscapesLabelTool(QtGui.QMainWindow):
     # Otherwise the filename is stored and that's it
     def loadLabels(self):
         filename = self.getLabelFilename()
-        if not filename or not os.path.isfile(filename):
+        if not filename and not os.path.isfile(filename):
             self.clearAnnotation()
             return
 
@@ -1227,8 +1227,11 @@ class CityscapesLabelTool(QtGui.QMainWindow):
         self.clearAnnotation()
 
         try:
-            self.annotation = Annotation()
-            self.annotation.fromJsonFile(filename)
+            if os.path.isfile(filename) :
+                self.annotation = Annotation(0,0)
+                self.annotation.fromJsonFile(filename)
+            else :
+                self.annotation = Annotation(self.image.width(),self.image.height())
         except IOError as e:
             # This is the error if the file does not exist
             message = "Error parsing labels in {0}. Message: {1}".format( filename, e.strerror )
