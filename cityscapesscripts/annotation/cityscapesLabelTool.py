@@ -2044,7 +2044,7 @@ class CityscapesLabelTool(QtGui.QMainWindow):
         else :
             sens = 1.0/pow(self.config.zoomFactor, 3);
         #To enable zoom version , have expected mouse movement
-        sens = 1.0
+        #sens = 1.0
         if self.config.zoom and self.mousePosOnZoom is not None:
             mousePos       = QtCore.QPointF(round((1-sens)*self.mousePosOnZoom.x() + (sens)*mousePosOrig.x()), round((1-sens)*self.mousePosOnZoom.y() + sens*mousePosOrig.y()))
         else :
