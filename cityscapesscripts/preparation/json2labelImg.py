@@ -131,7 +131,7 @@ def createLabelImage(annotation, encoding, outline=None):
 #     - "trainIds" : classes are encoded using the training IDs
 #     - "color"    : classes are encoded using the corresponding colors
 def json2labelImg(inJson,outImg,encoding="ids"):
-    annotation = Annotation()
+    annotation = Annotation(0,0)
     annotation.fromJsonFile(inJson)
     labelImg   = createLabelImage( annotation , encoding )
     labelImg.save( outImg )
