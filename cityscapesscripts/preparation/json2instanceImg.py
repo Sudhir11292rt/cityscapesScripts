@@ -174,7 +174,7 @@ def createInstanceImage(annotation, encoding):
 #     - "ids"      : classes are encoded using the regular label IDs
 #     - "trainIds" : classes are encoded using the training IDs
 def json2instanceImg(inJson,outImg,encoding="ids"):
-    annotation = Annotation()
+    annotation = Annotation(0,0)
     annotation.fromJsonFile(inJson)
     instanceImg = createInstanceImage( annotation , encoding )
     instanceImg.save( outImg )

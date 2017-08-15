@@ -4,8 +4,8 @@
 # We use this script to evaluate your approach on the test set.
 # You can use the script to evaluate on the validation set.
 #
-# Please check the description of the "getPrediction" method below 
-# and set the required environment variables as needed, such that 
+# Please check the description of the "getPrediction" method below
+# and set the required environment variables as needed, such that
 # this script can locate your results.
 # If the default implementation of the method works, then it's most likely
 # that our evaluation server will be able to process your results as well.
@@ -33,13 +33,6 @@ try:
     from itertools import izip
 except ImportError:
     izip = zip
-
-try:
-    from PIL import PILLOW_VERSION
-except:
-    print("Please install the module 'Pillow' for image processing, e.g.")
-    print("pip install pillow")
-    sys.exit(-1)
 
 try:
     import PIL.Image     as Image
@@ -104,16 +97,19 @@ def getPrediction( args, groundTruthFile ):
         args.predictionWalk = walk
 
     csFile = getCsFileInfo(groundTruthFile)
-    filePattern = "{}_{}_{}_gtFine_labelIds*.png".format( csFile.city , csFile.sequenceNb , csFile.frameNb )
+    filePattern = "{}_{}_gtFine_labelIds*.png".format( csFile.city , csFile.sequenceNb  )
 
     #print("pred",args.predictionWalk,"","\n")
     predictionFiles = []
     for root, filenames in args.predictionWalk:
         for filename in fnmatch.filter(filenames, filePattern):
+            #if not predictionFile:
             predictionFiles.append(os.path.join(root, filename))
+            #else:
+            #    predictionFile = os.path.join(root, filename)
                 #printError("Found multiple predictions for ground truth {}".format(groundTruthFile))
 
-    if not predictionFiles:
+    if len(predictionFiles) == 0:
         return [];
         #printError("Found no prediction for ground truth {}".format(groundTruthFile))
 
@@ -464,91 +460,33 @@ def printCategoryScores(scoreDict, instScoreDict, args):
         niouStr = getColorEntry(instScoreDict[categoryName], args) + "{val:>5.3f}".format(val=instScoreDict[categoryName]) + args.nocol
         print("{:<14}: ".format(categoryName) + iouStr + "    " + niouStr)
 
-# Gives percent of correctly annotated pixels out of all
 def evaluatePixelAccuracy(confMatrix):
     allTruePositives = 0;
     nonVoidPixels = 0
-    for label in args.evalLabels :
-        if label < 7  :
+    for label in args.evalLabels:
+        if label < 7 and label != -1:
             continue
-        nonVoidPixels += np.longlong(confMatrix[label , : ].sum())
-        allTruePositives += np.longlong(confMatrix[label,label])
+        nonVoidPixels += np.longlong(confMatrix[label, :].sum())
+        allTruePositives += np.longlong(confMatrix[label, label])
 
-    print("")
     allNonEdgeTruePositives = 0;
     nonEdgePixels = 0
     for label in args.evalLabels:
-        if label < 4 : # Havenot included license plate also.
+        if label < 4 and label != -1:
             continue
-        labelPixelSum = np.longlong(confMatrix[label, :].sum())
         nonEdgePixels += np.longlong(confMatrix[label, :].sum())
         allNonEdgeTruePositives += np.longlong(confMatrix[label, label])
-    evaluatePixelError(confMatrix,allNonEdgeTruePositives)
-    evaluateTrueVsOtherPixError(confMatrix,allNonEdgeTruePositives)
+
     print("~~~~~");
     print("Percent of (Truely labeled pixels/ All nonVoid pixels) : ",(allTruePositives*100.0)/nonVoidPixels)
-    print("Percent of (Truely labeled pixels/ All nonEdge pixels) : ",(allNonEdgeTruePositives * 100.0) /nonEdgePixels )
-    print("~~~~~~~")     
-
-#Evaluating Pixel Error Relation Metric
-def evaluatePixelError(confMatrix, totalPixelCt):
-    print("")
-    print("Description : For each label gives top 5 mis matched labels.")
-    print("For each label : we give (percent of mismatch w.r.t GT label) (percentage pixel mismatch w.r.t the image)\n")
-    for label in args.evalLabels:
-        if label < 4 : # Have not included licence plate alos.
-            continue
-        labelPixelSum = np.longlong(confMatrix[label, :].sum())
-        name = id2label[label].name
-        print("{name:>{width}} --> ".format(width=13,name=name),end=' ')
-        if labelPixelSum <= 0.000 :
-            print("{text:>13}".format(text="----"))
-        else :
-            sortedArrayIndices = np.argsort(np.array(confMatrix[label, :]))[::-1]
-            ct = 0;
-            for index in range(sortedArrayIndices.size) :
-                eleIdx = sortedArrayIndices[index]
-                if eleIdx == label :
-                     continue;
-                ct = ct+1
-                if(ct == 5) :
-                    break     
-                eleName = id2label[eleIdx].name
-                if len(eleName) > 13 :
-                     eleName = eleName[:13]
-                overallPixelError = (float(confMatrix[label, eleIdx])*100)/totalPixelCt
-                print("{text:>13} ({val:4.3f}) ({pixError:0.4f})".format(val=((float(confMatrix[label, eleIdx])*100)/labelPixelSum),pixError=overallPixelError, text=eleName), end=' ')
-            print("")
-
-#Evaluate top true vs other pixel error
-def evaluateTrueVsOtherPixError(confMatrix, totalPixelCt) :
-    print("\n Desc: Gives top 20 maximum pixel error w.r.t given image of true label marked as some other label ")
-    print("Format :  True Label  Other Label  (Percentage pixel error wrt Image)  (No of error Pixels)\n")
-    arr = np.array(confMatrix)
-    #print(arr.shape)
-    sorted2dArray = np.dstack(np.unravel_index(np.argsort(arr.ravel()), confMatrix.shape)).squeeze(0)[::-1]
-    #print(sorted2dArray.size)
-    #print(sorted2dArray)
-    ct = 0;
-    for idx in range(sorted2dArray.shape[0]) :
-        pair = sorted2dArray[idx]
-        #print(pair)
-
-        if (pair[0] == pair[1]) or pair[0] < 4 or pair[1] < 4:
-            continue
-        ct = ct+1;
-        if(ct == 90) :
-            break;   
-        trueLable = id2label[pair[0]].name
-        wrongLable = id2label[pair[1]].name
-        pixError = float(confMatrix[pair[0]][pair[1]]) 
-        print("{gtLabel:>13}(gtLabel) ------ {wrongLabel:13} ({pixErrorPercentage:0.4f}) ({pixError:0.4f})".format(gtLabel=trueLable,wrongLabel=wrongLable,pixErrorPercentage=(pixError*100)/totalPixelCt,pixError=pixError), end="\n")
+    print("Percent of (Truely labeled pixels/ All nonEdge pixels) : ",(allNonEdgeTruePositives * 100.0) /nonEdgePixels)
+    print("~~~~~~~")    
 
 # Evaluate image lists pairwise.
 def evaluateImgLists(predictionImgList, groundTruthImgList, args):
     if len(predictionImgList) != len(groundTruthImgList):
         printError("List of images for prediction and groundtruth are not of equal size.")
-    confMatrix    = generateMatrix(args)
+
     instStats     = generateInstanceStats(args)
     perImageStats = {}
     nbPixels      = 0
@@ -558,10 +496,12 @@ def evaluateImgLists(predictionImgList, groundTruthImgList, args):
 
     # Evaluate all pairs of images and save them into a matrix
     for i in range(len(predictionImgList)):
+        # the size of the image
+        confMatrix = generateMatrix(args)
         predictionImgFileName = predictionImgList[i]
         groundTruthImgFileName = groundTruthImgList[i]
-        print("Evaluate ", predictionImgFileName, "<>", groundTruthImgFileName)
-        nbPixels += evaluatePair(predictionImgFileName, groundTruthImgFileName, confMatrix, instStats, perImageStats, args)
+        #print "Evaluate ", predictionImgFileName, "<>", groundTruthImgFileName
+        nbPixels = evaluatePair(predictionImgFileName, groundTruthImgFileName, confMatrix, instStats, perImageStats, args)
 
         # sanity check
         if confMatrix.sum() != nbPixels:
@@ -570,73 +510,71 @@ def evaluateImgLists(predictionImgList, groundTruthImgList, args):
         if not args.quiet:
             print("\rImages Processed: {}".format(i+1), end=' ')
             sys.stdout.flush()
-    if not args.quiet:
-        print("\n")
+        if not args.quiet:
+            print("\n")
 
-    #create new image
+        # sanity check
+        if confMatrix.sum() != nbPixels:
+            printError('Number of analyzed pixels and entries in confusion matrix disagree: contMatrix {}, pixels {}'.format(confMatrix.sum(),nbPixels))
 
+        print("Prediction Image File Name ",predictionImgFileName,"\nground Truth Img FileName ",groundTruthImgFileName);
+        # print confusion matrix
+        #if (not args.quiet):
+        #    printConfMatrix(confMatrix, args)
+        
+        evaluatePixelAccuracy(confMatrix)
 
-    # sanity check
-    if confMatrix.sum() != nbPixels:
-        printError('Number of analyzed pixels and entries in confusion matrix disagree: contMatrix {}, pixels {}'.format(confMatrix.sum(),nbPixels))
+        # Calculate IOU scores on class level from matrix
+        classScoreList = {}
+        for label in args.evalLabels:
+            labelName = id2label[label].name
+            classScoreList[labelName] = getIouScoreForLabel(label, confMatrix, args)
 
-    # print confusion matrix
-    if (not args.quiet):
-        printConfMatrix(confMatrix, args)
-    evaluatePixelAccuracy(confMatrix)
+        # Calculate instance IOU scores on class level from matrix
+        classInstScoreList = {}
+        for label in args.evalLabels:
+            labelName = id2label[label].name
+            classInstScoreList[labelName] = getInstanceIouScoreForLabel(label, confMatrix, instStats, args)
 
+        # Print IOU scores
+        if (not args.quiet):
+            print("")
+            print("")
+            printClassScores(classScoreList, classInstScoreList, args)
+            iouAvgStr  = getColorEntry(getScoreAverage(classScoreList, args), args) + "{avg:5.3f}".format(avg=getScoreAverage(classScoreList, args)) + args.nocol
+            niouAvgStr = getColorEntry(getScoreAverage(classInstScoreList , args), args) + "{avg:5.3f}".format(avg=getScoreAverage(classInstScoreList , args)) + args.nocol
+            print("--------------------------------")
+            print("Score Average : " + iouAvgStr + "    " + niouAvgStr)
+            print("--------------------------------")
+            print("")
 
-    # Calculate IOU scores on class level from matrix
-    classScoreList = {}
-    for label in args.evalLabels:
-        labelName = id2label[label].name
-        classScoreList[labelName] = getIouScoreForLabel(label, confMatrix, args)
+        # Calculate IOU scores on category level from matrix
+        categoryScoreList = {}
+        for category in category2labels.keys():
+            categoryScoreList[category] = getIouScoreForCategory(category,confMatrix,args)
 
-    # Calculate instance IOU scores on class level from matrix
-    classInstScoreList = {}
-    for label in args.evalLabels:
-        labelName = id2label[label].name
-        classInstScoreList[labelName] = getInstanceIouScoreForLabel(label, confMatrix, instStats, args)
+        # Calculate instance IOU scores on category level from matrix
+        categoryInstScoreList = {}
+        for category in category2labels.keys():
+            categoryInstScoreList[category] = getInstanceIouScoreForCategory(category,confMatrix,instStats,args)
 
-    # Print IOU scores
-    if (not args.quiet):
-        print("")
-        print("")
-        printClassScores(classScoreList, classInstScoreList, args)
-        iouAvgStr  = getColorEntry(getScoreAverage(classScoreList, args), args) + "{avg:5.3f}".format(avg=getScoreAverage(classScoreList, args)) + args.nocol
-        niouAvgStr = getColorEntry(getScoreAverage(classInstScoreList , args), args) + "{avg:5.3f}".format(avg=getScoreAverage(classInstScoreList , args)) + args.nocol
-        print("--------------------------------")
-        print("Score Average : " + iouAvgStr + "    " + niouAvgStr)
-        print("--------------------------------")
-        print("")
+        # Print IOU scores
+        if (not args.quiet):
+            print("")
+            printCategoryScores(categoryScoreList, categoryInstScoreList, args)
+            iouAvgStr = getColorEntry(getScoreAverage(categoryScoreList, args), args) + "{avg:5.3f}".format(avg=getScoreAverage(categoryScoreList, args)) + args.nocol
+            niouAvgStr = getColorEntry(getScoreAverage(categoryInstScoreList, args), args) + "{avg:5.3f}".format(avg=getScoreAverage(categoryInstScoreList, args)) + args.nocol
+            print("--------------------------------")
+            print("Score Average : " + iouAvgStr + "    " + niouAvgStr)
+            print("--------------------------------")
+            print("")
 
-    # Calculate IOU scores on category level from matrix
-    categoryScoreList = {}
-    for category in category2labels.keys():
-        categoryScoreList[category] = getIouScoreForCategory(category,confMatrix,args)
-
-    # Calculate instance IOU scores on category level from matrix
-    categoryInstScoreList = {}
-    for category in category2labels.keys():
-        categoryInstScoreList[category] = getInstanceIouScoreForCategory(category,confMatrix,instStats,args)
-
-    # Print IOU scores
-    if (not args.quiet):
-        print("")
-        printCategoryScores(categoryScoreList, categoryInstScoreList, args)
-        iouAvgStr = getColorEntry(getScoreAverage(categoryScoreList, args), args) + "{avg:5.3f}".format(avg=getScoreAverage(categoryScoreList, args)) + args.nocol
-        niouAvgStr = getColorEntry(getScoreAverage(categoryInstScoreList, args), args) + "{avg:5.3f}".format(avg=getScoreAverage(categoryInstScoreList, args)) + args.nocol
-        print("--------------------------------")
-        print("Score Average : " + iouAvgStr + "    " + niouAvgStr)
-        print("--------------------------------")
-        print("")
-
-    # write result file
-    allResultsDict = createResultDict( confMatrix, classScoreList, classInstScoreList, categoryScoreList, categoryInstScoreList, perImageStats, args )
-    writeJSONFile( allResultsDict, args)
+        # write result file
+        allResultsDict = createResultDict( confMatrix, classScoreList, classInstScoreList, categoryScoreList, categoryInstScoreList, perImageStats, args )
+        writeJSONFile( allResultsDict, args)
 
     # return confusion matrix
-    return allResultsDict
+    return ;#allResultsDict
 
 # Main evaluation method. Evaluates pairs of prediction and ground truth
 # images which are passed as arguments.
@@ -661,7 +599,6 @@ def evaluatePair(predictionImgFileName, groundTruthImgFileName, confMatrix, inst
         except:
             printError("Unable to load " + groundTruthInstanceImgFileName)
 
-    #print("width",predictionImgFileName,predictionImg.size[0],groundTruthImg.size[0])
     # Check for equal image sizes
     if (predictionImg.size[0] != groundTruthImg.size[0]):
         printError("Image widths of " + predictionImgFileName + " and " + groundTruthImgFileName + " are not equal.")
@@ -674,17 +611,61 @@ def evaluatePair(predictionImgFileName, groundTruthImgFileName, confMatrix, inst
     imgHeight = predictionImg.size[1]
     nbPixels  = imgWidth*imgHeight
 
+    imageSrc = groundTruthImgFileName.replace("_gtFine_labelIds.png","_leftImg8bit.png")
+    imgSrc = imageSrc.replace("gtFine","leftImg8bit")
+
+    print(imgSrc);
+    srcImage = Image.open(open(imgSrc,'rb'))
+
+    if(predictionImg.size[0] != groundTruthImg.size[0] or predictionImg.size[1] != groundTruthImg.size[1]) :
+        printError("Src sizes and pred sizes are different")
+
+    size = (groundTruthImg.size[0], groundTruthImg.size[1])
+    background = name2label['unlabeled'].color
+    newLabelImg = Image.new("RGBA", size, background)
+
     # Evaluate images
     if (CSUPPORT):
         # using cython
         confMatrix = addToConfusionMatrix.cEvaluatePair(predictionNp, groundTruthNp, confMatrix, args.evalLabels)
     else:
         # the slower python way
+        # a drawer to draw into the image
+        #drawer = ImageDraw.Draw(newLabelImg)
+        #drawer.point()
+
+
         for (groundTruthImgPixel,predictionImgPixel) in izip(groundTruthImg.getdata(),predictionImg.getdata()):
             if (not groundTruthImgPixel in args.evalLabels):
                 printError("Unknown label with id {:}".format(groundTruthImgPixel))
-
             confMatrix[groundTruthImgPixel][predictionImgPixel] += 1
+
+    drawer = ImageDraw.Draw(newLabelImg)
+    groundTruthPixels = groundTruthImg.load()
+    predictionImgPixels = predictionImg.load()
+    srcImagePixels = srcImage.load()
+
+    for i in range(groundTruthImg.size[0]) :
+        for j in range(groundTruthImg.size[1]) :
+            if(groundTruthPixels[i,j] != predictionImgPixels[i,j]) :
+                groundTruthPixelij = groundTruthPixels[i,j]
+                #print(groundTruthPixelij)
+                labelId = groundTruthPixelij;
+                if(groundTruthPixelij > 1000) :
+                    labelId = int(groundTruthPixelij / 1000)
+                #print(labelId)
+                label = id2label[labelId]
+                #print(label.color)
+                drawer.point([i,j],label.color)
+            else :
+                rgbaVal = srcImagePixels[i, j] + (170,)
+                drawer.point([i,j],rgbaVal)
+
+
+    dst = predictionImgFileName.replace("_labelIds.png", "_diffLabels.png")
+    print(dst)
+    newLabelImg.save(dst);
+    print("image save done", "", "", "")
 
     if args.evalInstLevelScore:
         # Generate category masks
@@ -755,21 +736,23 @@ def main(argv):
     # however the no-argument way is prefered
     elif len(argv) == 0:
         # use the ground truth search string specified above
-        groundTruthImgList = []  # = glob.glob(args.groundTruthSearch)
+        groundTruthImgList = [] #= glob.glob(args.groundTruthSearch)
         groundTruthImgListCopy = glob.glob(args.groundTruthSearch)
         if not groundTruthImgListCopy:
             printError("Cannot find any ground truth images to use for evaluation. Searched for: {}".format(args.groundTruthSearch))
         # get the corresponding prediction for each ground truth imag
         for gt in groundTruthImgListCopy:
-            # print("gt0",gt,"","\n");
+            #print("gt0",gt,"","\n");
             elements = getPrediction(args, gt)
-            if len(elements) > 0:
-                for ele in elements:
-                    predictionImgList.append(ele)
-                    groundTruthImgList.append(gt)
-                    # else :
-                    # groundTruthImgList.remove(gt)
-        print("", len(predictionImgList), "", "\n")
+            if len(elements) > 0 :
+                for ele in elements :
+                    if gt != ele and ele not in groundTruthImgList:
+                         predictionImgList.append(ele)
+                         groundTruthImgList.append(gt)
+            #else :
+                #groundTruthImgList.remove(gt)
+        print("",len(predictionImgList),"","\n")
+
 
     # evaluate
     evaluateImgLists(predictionImgList, groundTruthImgList, args)

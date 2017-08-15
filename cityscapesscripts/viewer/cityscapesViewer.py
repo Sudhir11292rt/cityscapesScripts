@@ -507,7 +507,7 @@ class CityscapesViewer(QtGui.QMainWindow):
         self.clearAnnotation()
 
         try:
-            self.annotation = Annotation()
+            self.annotation = Annotation(0,0)
             self.annotation.fromJsonFile(filename)
         except IOError as e:
             # This is the error if the file does not exist
