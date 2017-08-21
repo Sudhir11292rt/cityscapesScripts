@@ -104,7 +104,7 @@ def getPrediction( args, groundTruthFile ):
         args.predictionWalk = walk
 
     csFile = getCsFileInfo(groundTruthFile)
-    filePattern = "{}_{}_{}_gtFine_labelIds*.png".format( csFile.city , csFile.sequenceNb , csFile.frameNb )
+    filePattern = "{}_{}_gtFine_labelIds*.png".format( csFile.city , csFile.sequenceNb , csFile.frameNb )
 
     #print("pred",args.predictionWalk,"","\n")
     predictionFiles = []
@@ -236,7 +236,7 @@ def getMatrixFieldValue(confMatrix, i, j, args):
 # Calculate and return IOU score for a particular label
 def getIouScoreForLabel(label, confMatrix, args):
     if id2label[label].ignoreInEval:
-        return float('nan'),float('nan')
+        return float('nan')
 
     # the number of true positive pixels for this label
     # the entry on the diagonal of the confusion matrix
@@ -245,8 +245,7 @@ def getIouScoreForLabel(label, confMatrix, args):
     # the number of false negative pixels for this label
     # the row sum of the matching row in the confusion matrix
     # minus the diagonal entry
-    gt = np.longlong(confMatrix[label,:].sum());
-    fn = gt - tp
+    fn = np.longlong(confMatrix[label,:].sum()) - tp
 
     # the number of false positive pixels for this labels
     # Only pixels that are not on a pixel with ground truth label that is ignored
@@ -258,23 +257,22 @@ def getIouScoreForLabel(label, confMatrix, args):
     # the denominator of the IOU score
     denom = (tp + fp + fn)
     if denom == 0:
-        return float('nan'),float('nan')
+        return float('nan')
 
     # return IOU
-    return float(tp) / denom , gt
+    return float(tp) / denom
 
 # Calculate and return IOU score for a particular label
 def getInstanceIouScoreForLabel(label, confMatrix, instStats, args):
     if id2label[label].ignoreInEval:
-        return float('nan'),float('nan')
+        return float('nan')
 
     labelName = id2label[label].name
     if not labelName in instStats["classes"]:
-        return float('nan'),float('nan')
+        return float('nan')
 
     tp = instStats["classes"][labelName]["tpWeighted"]
     fn = instStats["classes"][labelName]["fnWeighted"]
-    gt = tp+fn
     # false postives computed as above
     notIgnored = [l for l in args.evalLabels if not id2label[l].ignoreInEval and not l==label]
     fp = np.longlong(confMatrix[notIgnored,label].sum())
@@ -282,10 +280,10 @@ def getInstanceIouScoreForLabel(label, confMatrix, instStats, args):
     # the denominator of the IOU score
     denom = (tp + fp + fn)
     if denom == 0:
-        return float('nan'),float('nan')
+        return float('nan')
 
     # return IOU
-    return float(tp) / denom , gt
+    return float(tp) / denom
 
 # Calculate prior for a particular class id.
 def getPrior(label, confMatrix):
@@ -297,22 +295,9 @@ def getScoreAverage(scoreList, args):
     validScores = 0
     scoreSum    = 0.0
     for score in scoreList:
-        if not math.isnan(scoreList[score][0]):
+        if not math.isnan(scoreList[score]):
             validScores += 1
-            scoreSum += scoreList[score][0]
-    if validScores == 0:
-        return float('nan')
-    return scoreSum / validScores
-
-# Get weighted average of scores.
-# Only computes the average over valid entries.
-def getFreqScoreAverage(scoreList, args):
-    validScores = 0
-    scoreSum    = 0.0
-    for score in scoreList:
-        if not math.isnan(scoreList[score][0]):
-            validScores += scoreList[score][1]
-            scoreSum += scoreList[score][0]*scoreList[score][1]
+            scoreSum += scoreList[score]
     if validScores == 0:
         return float('nan')
     return scoreSum / validScores
@@ -325,7 +310,7 @@ def getIouScoreForCategory(category, confMatrix, args):
     labelIds = [label.id for label in labels if not label.ignoreInEval and label.id in args.evalLabels]
     # If there are no valid labels, then return NaN
     if not labelIds:
-        return float('nan'),float('nan')
+        return float('nan')
 
     # the number of true positive pixels for this category
     # this is the sum of all entries in the confusion matrix
@@ -346,15 +331,15 @@ def getIouScoreForCategory(category, confMatrix, args):
     # the denominator of the IOU score
     denom = (tp + fp + fn)
     if denom == 0:
-        return float('nan'),float('nan')
+        return float('nan')
 
     # return IOU
-    return float(tp) / denom, tp+fn
+    return float(tp) / denom
 
 # Calculate and return IOU score for a particular category
 def getInstanceIouScoreForCategory(category, confMatrix, instStats, args):
     if not category in instStats["categories"]:
-        return float('nan'),float('nan')
+        return float('nan')
     labelIds = instStats["categories"][category]["labelIds"]
 
     tp = instStats["categories"][category]["tpWeighted"]
@@ -368,10 +353,10 @@ def getInstanceIouScoreForCategory(category, confMatrix, instStats, args):
     # the denominator of the IOU score
     denom = (tp + fp + fn)
     if denom == 0:
-        return float('nan'),float('nan')
+        return float('nan')
 
     # return IOU
-    return float(tp) / denom,tp+fn
+    return float(tp) / denom
 
 
 # create a dictionary containing all relevant results
@@ -462,8 +447,8 @@ def printClassScores(scoreList, instScoreList, args):
         if (id2label[label].ignoreInEval):
             continue
         labelName = str(id2label[label].name)
-        iouStr = getColorEntry(scoreList[labelName][0], args) + "{val:>5.3f}".format(val=scoreList[labelName][0]) + args.nocol
-        niouStr = getColorEntry(instScoreList[labelName][0], args) + "{val:>5.3f}".format(val=instScoreList[labelName][0]) + args.nocol
+        iouStr = getColorEntry(scoreList[labelName], args) + "{val:>5.3f}".format(val=scoreList[labelName]) + args.nocol
+        niouStr = getColorEntry(instScoreList[labelName], args) + "{val:>5.3f}".format(val=instScoreList[labelName]) + args.nocol
         print("{:<14}: ".format(labelName) + iouStr + "    " + niouStr)
 
 # Print intersection-over-union scores for all categorys.
@@ -475,8 +460,8 @@ def printCategoryScores(scoreDict, instScoreDict, args):
     for categoryName in scoreDict:
         if all( label.ignoreInEval for label in category2labels[categoryName] ):
             continue
-        iouStr  = getColorEntry(scoreDict[categoryName][0], args) + "{val:>5.3f}".format(val=scoreDict[categoryName][0]) + args.nocol
-        niouStr = getColorEntry(instScoreDict[categoryName][0], args) + "{val:>5.3f}".format(val=instScoreDict[categoryName][0]) + args.nocol
+        iouStr  = getColorEntry(scoreDict[categoryName], args) + "{val:>5.3f}".format(val=scoreDict[categoryName]) + args.nocol
+        niouStr = getColorEntry(instScoreDict[categoryName], args) + "{val:>5.3f}".format(val=instScoreDict[categoryName]) + args.nocol
         print("{:<14}: ".format(categoryName) + iouStr + "    " + niouStr)
 
 # Gives percent of correctly annotated pixels out of all
@@ -620,12 +605,8 @@ def evaluateImgLists(predictionImgList, groundTruthImgList, args):
         printClassScores(classScoreList, classInstScoreList, args)
         iouAvgStr  = getColorEntry(getScoreAverage(classScoreList, args), args) + "{avg:5.3f}".format(avg=getScoreAverage(classScoreList, args)) + args.nocol
         niouAvgStr = getColorEntry(getScoreAverage(classInstScoreList , args), args) + "{avg:5.3f}".format(avg=getScoreAverage(classInstScoreList , args)) + args.nocol
-	wiouAvgStr = getColorEntry(getFreqScoreAverage(classScoreList , args), args) + "{avg:5.3f}".format(avg=getFreqScoreAverage(classScoreList , args)) + args.nocol
-	wniouAvgStr = getColorEntry(getFreqScoreAverage(classInstScoreList , args), args) + "{avg:5.3f}".format(avg=getFreqScoreAverage(classInstScoreList , args)) + args.nocol
         print("--------------------------------")
         print("Score Average : " + iouAvgStr + "    " + niouAvgStr)
-        print("--------------------------------")
-	print("W-Score Avg   : " + wiouAvgStr + "    " + wniouAvgStr)
         print("--------------------------------")
         print("")
 
@@ -645,12 +626,8 @@ def evaluateImgLists(predictionImgList, groundTruthImgList, args):
         printCategoryScores(categoryScoreList, categoryInstScoreList, args)
         iouAvgStr = getColorEntry(getScoreAverage(categoryScoreList, args), args) + "{avg:5.3f}".format(avg=getScoreAverage(categoryScoreList, args)) + args.nocol
         niouAvgStr = getColorEntry(getScoreAverage(categoryInstScoreList, args), args) + "{avg:5.3f}".format(avg=getScoreAverage(categoryInstScoreList, args)) + args.nocol
-	wiouAvgStr = getColorEntry(getFreqScoreAverage(categoryScoreList, args), args) + "{avg:5.3f}".format(avg=getFreqScoreAverage(categoryScoreList, args)) + args.nocol
-	wniouAvgStr = getColorEntry(getFreqScoreAverage(categoryInstScoreList, args), args) + "{avg:5.3f}".format(avg=getFreqScoreAverage(categoryInstScoreList, args)) + args.nocol
         print("--------------------------------")
         print("Score Average : " + iouAvgStr + "    " + niouAvgStr)
-        print("--------------------------------")
-	print("W-Score Avg   : " + wiouAvgStr  + "    " + wniouAvgStr)
         print("--------------------------------")
         print("")
 
@@ -788,8 +765,9 @@ def main(argv):
             elements = getPrediction(args, gt)
             if len(elements) > 0:
                 for ele in elements:
-                    predictionImgList.append(ele)
-                    groundTruthImgList.append(gt)
+                    if gt != ele and ele not in groundTruthImgList: 
+		    	predictionImgList.append(ele)
+                    	groundTruthImgList.append(gt)
                     # else :
                     # groundTruthImgList.remove(gt)
         print("", len(predictionImgList), "", "\n")
